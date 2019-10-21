@@ -6,15 +6,17 @@ from sqlalchemy import create_engine
 from json import dumps
 import mysql.connector
 import json
+import sqlite3
 
 app = Flask(__name__)
-mysql = MySQL()
+mysql = MySQL(app)
 app.config['DEBUG'] = True
 
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_DB'] = 'DBase'
+app.config['MYSQL_DATABASE_DB'] = 'dbase'
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 mysql.init_app(app)
 
 
@@ -26,11 +28,11 @@ def checkKey(dict, key):
         return False
 
 def isiDbase():
+    connection = sqlite3.connect("dbase.db")
+    cursor = connection.cursor()
     for i in range (137000, 137100):
     #melakukan pencarian sesuai range yang ditetapkan
         try :
-            conn = mysql.connect()
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
             url = 'https://webpac.lib.itb.ac.id/index.php/marc/view/{}/JSON'.format(i)
 
             #memasukkan data JSON ke variabel data
@@ -46,7 +48,7 @@ def isiDbase():
                     Judul = "null"
             #insert into database
             if (not(Judul == "null")):
-                cur.execute("INSERT INTO book(Judul) Values (%s)")
+                cursor.execute("INSERT INTO book(Judul) Values (%s)")
 
             #mencari ISBN (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -58,7 +60,7 @@ def isiDbase():
 
             #insert into database
             if (not(ISBN == "null")):
-                cur.execute("INSERT INTO book(ISBN) Values (%s)")
+                cursor.execute("INSERT INTO book(ISBN) Values (%s)")
 
             #mencari Penulis (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -70,7 +72,7 @@ def isiDbase():
 
             #insert into database
             if (not(Penulis == "null")):
-                cur.execute("INSERT INTO book(Penulis) Values (%s)")
+                cursor.execute("INSERT INTO book(Penulis) Values (%s)")
 
             #mencari Penerbit dan Tahun Terbit (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -84,37 +86,75 @@ def isiDbase():
 
             #insert into database
             if (not(Penerbit == "null")):
-                cur.execute("INSERT INTO book(Penerbit) Values (%s)")
+                cursor.execute("INSERT INTO book(Penerbit) Values (%s)")
             #insert into database
             if (not(Tahun_terbit == "null")):
-                cur.execute("INSERT INTO book(Tahun_terbit) Values (%s)")
+                cursor.execute("INSERT INTO book(Tahun_terbit) Values (%s)")
 
         #menghandle exception
         except :
             continue
+    connection.commit()
+    
+    cursor.close()
+    connection.close()
+
+@app.route('/api/', methods=['GET','POST'])
+def index():
+    global cursor, conn
+    #mengisi database
+    isiDbase()
+    if request.method == 'GET':
+        try:
+            conn = mysql.connect()
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            cursor.execute("select * from book")
+            res = cursor.fetchall()
+        except Exception as e:
+            return e
         finally:
             cursor.close()
             conn.close()
 
-@app.route('/api/', methods=['GET','POST'])
-def index():
-    global cur, conn
-    #definisikan cursor untuk manipulasi database
-    conn = mysql.connect()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    if request.method == 'GET':
+    elif request.method == 'POST':
         try:
-            cur.execute("select * from book")
-            return {'book': [i[0] for i in query.cursor.fetchall()]}
+            conn = mysql.connect()
+            cursor = conn.cursor()
+
+            judul = request.args.get('judul')
+            isbn = request.args.get('isbn')
+            penulis = request.args.get('penulis')
+            penerbit = request.args.get('penerbit')
+            tahun_terbit = request.args.get('tahun_terbit')
+
+            sql = """ INSERT INTO book(judul, isbn, penulis, penerbit, tahun_terbit) VALUES(%s,%s,%s,%s,%s)"""
+
+            data = (judul,isbn,penulis,penerbit,tahun_terbit)
+            cursor.execute(sql, data)
+            connection.commit()
+            res = {
+                'message' : 'Success',
+                'data': {
+                    'judul' : judul,
+                    'isbn' : isbn,
+                    'penulis' : penulis,
+                    'penerbit' : penerbit,
+                    'tahun_terbit' : tahun_terbit
+                    }
+                }
+
         except Exception as e:
             return e
         finally:
-            cur.close()
+            cursor.close()
+            conn.close()
+        
     else:
         res = [{
             'status': 201,
             'message': 'Failed',
         }]
+        
     return jsonify({'result': res})
 
 
@@ -142,7 +182,5 @@ def not_found(error=None):
     return resp
 
 if __name__ == '__main__':
-    #mengisi database
-    isiDbase()
-
+    
     app.run()
