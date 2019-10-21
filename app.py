@@ -99,10 +99,10 @@ def isiDbase():
     cursor.close()
     conn.close()
 
-@app.route('/', methods=['GET','POST'])
+@app.route('/', methods=['GET'])
 def index():
+    #mengambil dari database
     global cursor, conn
-    isiDbase()
     if request.method == 'GET':
         try:
             conn = mysql.connect()
@@ -114,8 +114,19 @@ def index():
         finally:
             cursor.close()
             conn.close()
+    else:
+        res = [{
+            'status': 201,
+            'message': 'Failed',
+        }]
+        
+    return jsonify({'result': res})
 
-    elif request.method == 'POST':
+@app.route('/admin/', methods=['POST','DELETE','PUT'])
+def change():
+    global cursor, conn
+    #mengupload ke database
+    if request.method == 'POST':
         try:
             conn = mysql.connect()
             cursor = conn.cursor()
@@ -126,18 +137,18 @@ def index():
             penerbit = request.args.get('penerbit')
             tahun_terbit = request.args.get('tahun_terbit')
 
-            sql = """ INSERT INTO book(judul, isbn, penulis, penerbit, tahun_terbit) VALUES(%s,%s,%s,%s,%s)"""
+            sql = """INSERT INTO book(Judul, ISBN, Penulis, Penerbit, tahun_terbit) VALUES(%s,%s,%s,%s,%s)"""
 
             data = (judul,isbn,penulis,penerbit,tahun_terbit)
             cursor.execute(sql, data)
-            connection.commit()
+            conn.commit()
             res = {
                 'message' : 'Success',
                 'data': {
-                    'judul' : judul,
-                    'isbn' : isbn,
-                    'penulis' : penulis,
-                    'penerbit' : penerbit,
+                    'Judul' : judul,
+                    'ISBN' : isbn,
+                    'Penulis' : penulis,
+                    'Penerbit' : penerbit,
                     'tahun_terbit' : tahun_terbit
                     }
                 }
@@ -147,7 +158,60 @@ def index():
         finally:
             cursor.close()
             conn.close()
-        
+
+    #menghapus dari database
+    elif request.method == 'DELETE':
+        try:
+            conn = mysql.connect()
+            cursor = conn.cursor()
+            data = request.args.get('judul')
+            query = """DELETE FROM book WHERE judul=%s"""
+            cursor.execute(query, data)
+            conn.commit()
+            res = [{
+            'status': 200,
+            'message': "Deleted"
+            }]
+            return jsonify(res)
+        except Exception as e:
+            return e
+        finally:
+            cursor.close()
+            conn.close()
+
+    #mengubah entri database
+    elif request.method == 'PUT':
+        try:
+            conn = mysql.connect()
+            cursor = conn.cursor()
+
+            judul = request.args.get('judul')
+            isbn = request.args.get('isbn')
+            penulis = request.args.get('penulis')
+            penerbit = request.args.get('penerbit')
+            tahun_terbit = request.args.get('tahun_terbit')
+
+            query = """UPDATE book SET ISBN=%s, Penulis=%s, Penerbit=%s, tahun_terbit=%s WHERE Judul=%s"""
+            data = (isbn,penulis,penerbit,tahun_terbit,judul)
+            cursor.execute(query,data)
+            conn.commit()
+
+            res = {
+                'message' : 'Success',
+                'data': {
+                    'Judul' : judul,
+                    'ISBN' : isbn,
+                    'Penulis' : penulis,
+                    'Penerbit' : penerbit,
+                    'tahun_terbit' : tahun_terbit
+                    }
+                }  
+        except Exception as e:
+            return e
+        finally:
+            cursor.close()
+            conn.close()
+            
     else:
         res = [{
             'status': 201,
@@ -182,4 +246,5 @@ def not_found(error=None):
     return resp
 
 if __name__ == '__main__':
+    isiDbase()
     app.run()
