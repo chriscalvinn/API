@@ -6,7 +6,6 @@ from sqlalchemy import create_engine
 from json import dumps
 import mysql.connector
 import json
-import sqlite3
 
 app = Flask(__name__)
 mysql = MySQL(app)
@@ -19,7 +18,6 @@ app.config['MYSQL_DATABASE_DB'] = 'dbase'
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 mysql.init_app(app)
 
-
 def checkKey(dict, key):
 #mengembalikan true jika key ada di dictionary dan false jika tidak
     if key in dict: 
@@ -28,8 +26,8 @@ def checkKey(dict, key):
         return False
 
 def isiDbase():
-    connection = sqlite3.connect("dbase.db")
-    cursor = connection.cursor()
+    conn = mysql.connect()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     for i in range (137000, 137100):
     #melakukan pencarian sesuai range yang ditetapkan
         try :
@@ -94,16 +92,14 @@ def isiDbase():
         #menghandle exception
         except :
             continue
-    connection.commit()
+    conn.commit()
     
     cursor.close()
-    connection.close()
+    conn.close()
 
-@app.route('/api/', methods=['GET','POST'])
+@app.route('/', methods=['GET','POST'])
 def index():
     global cursor, conn
-    #mengisi database
-    isiDbase()
     if request.method == 'GET':
         try:
             conn = mysql.connect()
@@ -158,6 +154,7 @@ def index():
     return jsonify({'result': res})
 
 
+
 @app.errorhandler(404)
 def not_found(error=None):
     message = {
@@ -182,5 +179,4 @@ def not_found(error=None):
     return resp
 
 if __name__ == '__main__':
-    
     app.run()
