@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from json import dumps
 import mysql.connector
 import json
+import requests
 
 app = Flask(__name__)
 mysql = MySQL(app)
@@ -46,7 +47,7 @@ def isiDbase():
                     Judul = "null"
             #insert into database
             if (not(Judul == "null")):
-                cursor.execute("INSERT INTO book(Judul) Values (%s)")
+                cursor.execute("INSERT INTO book(Judul) Values (%s)", Judul)
 
             #mencari ISBN (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -58,7 +59,7 @@ def isiDbase():
 
             #insert into database
             if (not(ISBN == "null")):
-                cursor.execute("INSERT INTO book(ISBN) Values (%s)")
+                cursor.execute("INSERT INTO book(ISBN) Values (%s)", ISBN)
 
             #mencari Penulis (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -67,10 +68,10 @@ def isiDbase():
                     break
                 else :
                     Penulis = "null"
-
+           
             #insert into database
             if (not(Penulis == "null")):
-                cursor.execute("INSERT INTO book(Penulis) Values (%s)")
+                cursor.execute("INSERT INTO book(Penulis) Values (%s)", Penulis)
 
             #mencari Penerbit dan Tahun Terbit (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -84,13 +85,14 @@ def isiDbase():
 
             #insert into database
             if (not(Penerbit == "null")):
-                cursor.execute("INSERT INTO book(Penerbit) Values (%s)")
+                cursor.execute("INSERT INTO book(Penerbit) Values (%s)", Penerbit)
             #insert into database
             if (not(Tahun_terbit == "null")):
-                cursor.execute("INSERT INTO book(Tahun_terbit) Values (%s)")
+                cursor.execute("INSERT INTO book(Tahun_terbit) Values (%s)", Tahun_terbit)
 
         #menghandle exception
-        except :
+        except Exception as e:
+            print(e)
             continue
     conn.commit()
     
@@ -100,6 +102,7 @@ def isiDbase():
 @app.route('/', methods=['GET','POST'])
 def index():
     global cursor, conn
+    isiDbase()
     if request.method == 'GET':
         try:
             conn = mysql.connect()
