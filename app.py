@@ -2,7 +2,6 @@ import pymysql
 from flaskext.mysql import MySQL
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from sqlalchemy import create_engine
 from json import dumps
 import mysql.connector
 import json
@@ -10,7 +9,7 @@ import requests
 
 app = Flask(__name__)
 mysql = MySQL(app)
-app.config['DEBUG'] = True
+#app.config['DEBUG'] = True
 
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 app.config['MYSQL_DATABASE_PASSWORD'] = ''
@@ -45,10 +44,7 @@ def isiDbase():
                     break
                 else :
                     Judul = "null"
-            #insert into database
-            if (not(Judul == "null")):
-                cursor.execute("INSERT INTO book(Judul) Values (%s)", Judul)
-
+                    
             #mencari ISBN (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
                 if checkKey(data[0]['fields'][j],'020') :
@@ -57,10 +53,6 @@ def isiDbase():
                 else :
                     ISBN = "null"
 
-            #insert into database
-            if (not(ISBN == "null")):
-                cursor.execute("INSERT INTO book(ISBN) Values (%s)", ISBN)
-
             #mencari Penulis (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
                 if checkKey(data[0]['fields'][j],'100') :
@@ -68,10 +60,6 @@ def isiDbase():
                     break
                 else :
                     Penulis = "null"
-           
-            #insert into database
-            if (not(Penulis == "null")):
-                cursor.execute("INSERT INTO book(Penulis) Values (%s)", Penulis)
 
             #mencari Penerbit dan Tahun Terbit (Jika tidak ada diberi nilai null)
             for j in range (0, len(data[0]['fields'])):
@@ -84,16 +72,22 @@ def isiDbase():
                     Tahun_terbit = "null"
 
             #insert into database
-            if (not(Penerbit == "null")):
-                cursor.execute("INSERT INTO book(Penerbit) Values (%s)", Penerbit)
-            #insert into database
-            if (not(Tahun_terbit == "null")):
-                cursor.execute("INSERT INTO book(Tahun_terbit) Values (%s)", Tahun_terbit)
+            instance = (Judul, ISBN, Penulis, Penerbit, Tahun_terbit)
+            query = """INSERT INTO book(
+                Judul,
+                ISBN,
+                Penulis,
+                Penerbit,
+                Tahun_terbit
+                )
+                Values (%s,%s,%s,%s,%s)"""
+            cursor.execute(query, instance)
 
         #menghandle exception
         except Exception as e:
             print(e)
             continue
+
     conn.commit()
     
     cursor.close()
@@ -136,11 +130,14 @@ def change():
             penulis = request.args.get('penulis')
             penerbit = request.args.get('penerbit')
             tahun_terbit = request.args.get('tahun_terbit')
+            total = request.args.get('total')
+            tersedia = request.args.get('tersedia')
+            sedang_dipinjam = request.args.get('sedang_dipinjam')
 
-            sql = """INSERT INTO book(Judul, ISBN, Penulis, Penerbit, tahun_terbit) VALUES(%s,%s,%s,%s,%s)"""
+            query = "INSERT INTO book(Judul, ISBN, Penulis, Penerbit, tahun_terbit, Sedang_dipinjam, Tersedia, total) VALUES(%s,%s,%s,%s,%s,%d,%d,%d)"
 
-            data = (judul,isbn,penulis,penerbit,tahun_terbit)
-            cursor.execute(sql, data)
+            data = (judul, isbn, penulis, penerbit, tahun_terbit, sedang_dipinjam, tersedia, total)
+            cursor.execute(query, data)
             conn.commit()
             res = {
                 'message' : 'Success',
@@ -149,7 +146,10 @@ def change():
                     'ISBN' : isbn,
                     'Penulis' : penulis,
                     'Penerbit' : penerbit,
-                    'tahun_terbit' : tahun_terbit
+                    'Tahun_terbit' : tahun_terbit,
+                    'Sedang_dipinjam' : sedang_dipinjam,
+                    'Tersedia' : tersedia,
+                    'Total' : total
                     }
                 }
 
@@ -190,9 +190,12 @@ def change():
             penulis = request.args.get('penulis')
             penerbit = request.args.get('penerbit')
             tahun_terbit = request.args.get('tahun_terbit')
+            total = request.args.get('total')
+            tersedia = request.args.get('tersedia')
+            sedang_dipinjam = request.args.get('sedang_dipinjam')
 
-            query = """UPDATE book SET ISBN=%s, Penulis=%s, Penerbit=%s, tahun_terbit=%s WHERE Judul=%s"""
-            data = (isbn,penulis,penerbit,tahun_terbit,judul)
+            query = "UPDATE book SET ISBN=%s, Penulis=%s, Penerbit=%s, tahun_terbit=%s, Sedang_dipinjam=%d, Tersedia=%d, total=% WHERE Judul=%s"
+            data = (isbn,penulis,penerbit,tahun_terbit, sedang_dipinjam, tersedia, total, judul)
             cursor.execute(query,data)
             conn.commit()
 
@@ -203,7 +206,10 @@ def change():
                     'ISBN' : isbn,
                     'Penulis' : penulis,
                     'Penerbit' : penerbit,
-                    'tahun_terbit' : tahun_terbit
+                    'tahun_terbit' : tahun_terbit,
+                    'Sedang_dipinjam' : sedang_dipinjam,
+                    'Tersedia' : tersedia,
+                    'Total' : total
                     }
                 }  
         except Exception as e:
